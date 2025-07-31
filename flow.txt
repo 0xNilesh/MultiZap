@@ -1,0 +1,42 @@
+Flow
+1. Frontend - swap
+2. Alice - maker token, taker amount - sign, approve -> relayer backend (api)
+3. Order store in relayer, secret generate - starts dutch auction
+4. Relayers - get orders (api)
+5. Resolver calls api (bid auction) -> auction price fix, relayer success, 
+6. auction -> order me winning Resolver set hoga
+7. Resolver calls source chain escrow factory -> deploy a htlc escrow contract -> alice tokens 
+8. Resolver calls dest chain escrow factory -> deploy a htlc escrow contract -> sends taker asset
+9. Resolver calls relayer api -> secret reveal -> src, dest escrow -> verify -> return secret
+10. Resolver call src, dest to unlock tokens
+
+Arch
+1. Frontend -> UI swap -> 2 wallet connection -> EVM + Non-EVM
+2. Submit and sign order
+
+3. Relayer Server
+a. APIs
+    1. getORders
+    2. Submit order -> store order
+    3. Submit bid
+    4. Get Secret
+DB
+
+4. Resolver Server
+    a. Fetch orders - polling
+    b. Bidding - bid api call
+    c. Deploy call - operation
+
+5. Contracts
+    a. EVM
+        1. Escrow factory
+        2. HTLC Escrow
+    b. Non-EVM
+        1. Escrow factory
+        2. HTLC Escrow
+
+
+Options
+1. Cosmos
+2. Near
+3. Starknet
