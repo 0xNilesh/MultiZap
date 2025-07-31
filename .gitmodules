@@ -1,0 +1,3 @@
+[submodule "evm-htlc/lib/openzeppelin-contracts"]
+	path = evm-htlc/lib/openzeppelin-contracts
+	url = https://github.com/OpenZeppelin/openzeppelin-contracts
