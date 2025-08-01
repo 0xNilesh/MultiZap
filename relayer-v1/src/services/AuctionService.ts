@@ -6,34 +6,44 @@ export interface AuctionInfo {
   makingAmount: string;
   takingAmount: string;
   auction: {
-    initialRateBump: number;
     duration: number;
     startTime: number;
   };
-  currentBump: number;
+  currentAmount: string;
   status: string;
 }
 
 export class AuctionService {
   /**
-   * Calculate current rate bump for a Dutch auction
+   * Calculate current amount for a Dutch auction
    * @param auction Auction parameters
    * @param currentTimestamp Current timestamp
-   * @returns Current rate bump (0 to initialRateBump)
+   * @param makingAmount Original making amount
+   * @param takingAmount Original taking amount
+   * @returns Current amount (linear decay from makingAmount to takingAmount)
    */
-  static calculateCurrentBump(
-    auction: { initialRateBump: number; duration: number; startTime: number },
-    currentTimestamp: number
-  ): number {
+  static calculateCurrentAmount(
+    auction: { duration: number; startTime: number },
+    currentTimestamp: number,
+    makingAmount: string,
+    takingAmount: string
+  ): string {
     const elapsed = currentTimestamp - auction.startTime;
     const fraction = Math.max(0, Math.min(1, elapsed / auction.duration));
-    return auction.initialRateBump * (1 - fraction);
+    
+    const makingBigInt = BigInt(makingAmount);
+    const takingBigInt = BigInt(takingAmount);
+    
+    // Linear interpolation: makingAmount -> takingAmount
+    const currentAmount = makingBigInt - (makingBigInt - takingBigInt) * BigInt(Math.floor(fraction * 1000000)) / BigInt(1000000);
+    
+    return currentAmount.toString();
   }
 
   /**
-   * Get all pending auction orders with current bump calculation
-   * @param currentTimestamp Current timestamp for bump calculation
-   * @returns Array of auction info with current bump
+   * Get all pending auction orders with current amount calculation
+   * @param currentTimestamp Current timestamp for amount calculation
+   * @returns Array of auction info with current amount
    */
   static async getPendingAuctions(currentTimestamp: number): Promise<AuctionInfo[]> {
     const orders = await Order.find({ status: 'pending_auction' }).sort({ 'auction.startTime': 1 });
@@ -44,7 +54,7 @@ export class AuctionService {
       makingAmount: order.makingAmount,
       takingAmount: order.takingAmount,
       auction: order.auction,
-      currentBump: this.calculateCurrentBump(order.auction, currentTimestamp),
+      currentAmount: this.calculateCurrentAmount(order.auction, currentTimestamp, order.makingAmount, order.takingAmount),
       status: order.status
     }));
   }
@@ -70,30 +80,20 @@ export class AuctionService {
   }
 
   /**
-   * Calculate effective amounts based on rate bump
+   * Calculate effective amounts based on current auction amount
    * @param makingAmount Original making amount
    * @param takingAmount Original taking amount
-   * @param rateBump Current rate bump
+   * @param currentAmount Current auction amount
    * @returns Effective amounts
    */
   static calculateEffectiveAmounts(
     makingAmount: string,
     takingAmount: string,
-    rateBump: number
+    currentAmount: string
   ): { fillAmount: string; takeAmount: string } {
-    const makingBigInt = BigInt(makingAmount);
-    const takingBigInt = BigInt(takingAmount);
-    
-    // Apply rate bump to calculate effective amounts
-    const bumpMultiplier = BigInt(Math.floor((1 - rateBump) * 1000000)); // 6 decimal precision
-    const baseMultiplier = BigInt(1000000);
-    
-    const fillAmount = (makingBigInt * bumpMultiplier) / baseMultiplier;
-    const takeAmount = (takingBigInt * bumpMultiplier) / baseMultiplier;
-    
     return {
-      fillAmount: fillAmount.toString(),
-      takeAmount: takeAmount.toString()
+      fillAmount: makingAmount, // Resolver gets full makingAmount from source escrow
+      takeAmount: currentAmount  // Resolver pays currentAmount to destination escrow
     };
   }
 } 

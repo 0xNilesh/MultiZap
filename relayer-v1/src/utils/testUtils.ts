@@ -35,21 +35,23 @@ export class TestUtils {
    */
   static testAuctionCalculation() {
     const auction = {
-      initialRateBump: 0.05,
       duration: 120,
       startTime: Math.floor(Date.now() / 1000)
     };
 
+    const makingAmount = "100000000"; // 100 USDC
+    const takingAmount = "95000000";  // 95 USDC
     const currentTime = auction.startTime + 60; // Halfway through auction
-    const currentBump = AuctionService.calculateCurrentBump(auction, currentTime);
+    const currentAmount = AuctionService.calculateCurrentAmount(auction, currentTime, makingAmount, takingAmount);
     
     console.log('Auction Test Results:');
-    console.log('Initial Rate Bump:', auction.initialRateBump);
+    console.log('Making Amount:', makingAmount);
+    console.log('Taking Amount:', takingAmount);
     console.log('Current Time:', currentTime);
-    console.log('Current Bump:', currentBump);
-    console.log('Expected Bump:', auction.initialRateBump * 0.5);
+    console.log('Current Amount:', currentAmount);
+    console.log('Expected Amount: ~97500000 (halfway between 100 and 95)');
     
-    return Math.abs(currentBump - (auction.initialRateBump * 0.5)) < 0.001;
+    return currentAmount && parseInt(currentAmount) > 95000000 && parseInt(currentAmount) < 100000000;
   }
 
   /**
@@ -57,15 +59,15 @@ export class TestUtils {
    */
   static testEffectiveAmounts() {
     const makingAmount = '100000000';
-    const takingAmount = '99000000';
-    const rateBump = 0.032;
+    const takingAmount = '95000000';
+    const currentAmount = '97500000';
 
-    const result = ChainUtils.calculateEffectiveAmounts(makingAmount, takingAmount, rateBump);
+    const result = AuctionService.calculateEffectiveAmounts(makingAmount, takingAmount, currentAmount);
     
     console.log('Effective Amounts Test:');
     console.log('Original Making Amount:', makingAmount);
     console.log('Original Taking Amount:', takingAmount);
-    console.log('Rate Bump:', rateBump);
+    console.log('Current Auction Amount:', currentAmount);
     console.log('Effective Fill Amount:', result.fillAmount);
     console.log('Effective Take Amount:', result.takeAmount);
     
@@ -132,7 +134,7 @@ export class TestUtils {
         url: '/orders/{orderId}/assign',
         body: {
           resolverAddress: '0xResolverContract123',
-          effectiveBump: 0.032
+          effectiveAmount: '97500000'
         }
       },
       getOrderDetails: {

@@ -4,7 +4,7 @@ export interface IResolverAssignment extends Document {
   _id: string;
   orderId: string;
   resolverAddress: string;
-  effectiveBump: number;
+  effectiveAmount: string;
   assignedAt: Date;
   srcEscrowAddress?: string;
   dstEscrowAddress?: string;
@@ -18,7 +18,7 @@ export interface IResolverAssignment extends Document {
 const ResolverAssignmentSchema = new Schema<IResolverAssignment>({
   orderId: { type: String, required: true, unique: true, index: true },
   resolverAddress: { type: String, required: true },
-  effectiveBump: { type: Number, required: true },
+  effectiveAmount: { type: String, required: true },
   assignedAt: { type: Date, required: true, default: Date.now },
   srcEscrowAddress: { type: String, default: null },
   dstEscrowAddress: { type: String, default: null },

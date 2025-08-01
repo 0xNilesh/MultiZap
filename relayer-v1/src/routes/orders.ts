@@ -16,7 +16,6 @@ const createOrderValidation = [
   body('hashlock').isString().notEmpty(),
   body('timelocks.srcWithdrawal').isNumeric(),
   body('timelocks.dstWithdrawal').isNumeric(),
-  body('auction.initialRateBump').isFloat({ min: 0, max: 1 }),
   body('auction.duration').isNumeric({ min: 1 }),
   body('auction.startTime').isNumeric(),
   body('signature').isString().notEmpty(),
@@ -25,7 +24,7 @@ const createOrderValidation = [
 
 const assignOrderValidation = [
   body('resolverAddress').isString().notEmpty(),
-  body('effectiveBump').isFloat({ min: 0, max: 1 })
+  body('effectiveAmount').isString().notEmpty()
 ];
 
 

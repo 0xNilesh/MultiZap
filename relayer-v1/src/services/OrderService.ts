@@ -20,7 +20,7 @@ export interface CreateOrderRequest {
 
 export interface AssignOrderRequest {
   resolverAddress: string;
-  effectiveBump: number;
+  effectiveAmount: string;
 }
 
 
@@ -109,7 +109,7 @@ export class OrderService {
     const assignment = new ResolverAssignment({
       orderId,
       resolverAddress: assignmentData.resolverAddress,
-      effectiveBump: assignmentData.effectiveBump,
+      effectiveAmount: assignmentData.effectiveAmount,
       status: 'assigned'
     });
 
@@ -125,13 +125,14 @@ export class OrderService {
       type: 'order_assigned',
       payload: {
         resolverAddress: assignmentData.resolverAddress,
-        effectiveBump: assignmentData.effectiveBump
+        effectiveAmount: assignmentData.effectiveAmount
       }
     });
 
     return {
       orderId,
       assignedResolver: assignmentData.resolverAddress,
+      effectiveAmount: assignmentData.effectiveAmount,
       status: 'assigned'
     };
   }

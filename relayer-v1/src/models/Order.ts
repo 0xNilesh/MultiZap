@@ -12,7 +12,6 @@ export interface IOrder extends Document {
   hashlock: string;
   secretRevealed: boolean;
   auction: {
-    initialRateBump: number;
     duration: number;
     startTime: number;
   };
@@ -38,7 +37,6 @@ const OrderSchema = new Schema<IOrder>({
   hashlock: { type: String, required: true, index: true },
   secretRevealed: { type: Boolean, default: false },
   auction: {
-    initialRateBump: { type: Number, required: true },
     duration: { type: Number, required: true },
     startTime: { type: Number, required: true }
   },
