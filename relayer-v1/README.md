@@ -189,6 +189,8 @@ Finalize order status.
 }
 ```
 
+**Note**: The `srcClaimTx` is stored as `srcClaimTxHash` in the assignment, while `destinationTxHash` from upload-secret is stored as `destClaimTxHash`.
+
 #### POST /orders/:orderId/upload-secret
 Upload secret after user claims from source escrow.
 
@@ -196,7 +198,7 @@ Upload secret after user claims from source escrow.
 ```json
 {
   "secret": "my-secret-key-123",
-  "claimTxHash": "0x..."
+  "destinationTxHash": "0x..."
 }
 ```
 
@@ -279,7 +281,8 @@ Resolvers poll `/orders?status=pending_auction` and accept when `currentBump >= 
   "fillAmount": "string",
   "takeAmount": "string",
   "secret": "string",
-  "claimTxHash": "string",
+  "destClaimTxHash": "string",
+  "srcClaimTxHash": "string",
   "status": "assigned"
 }
 ```

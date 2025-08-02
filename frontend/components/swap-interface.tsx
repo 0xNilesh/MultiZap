@@ -12,7 +12,7 @@ import { ArrowDown, Wallet, ChevronDown, CheckCircle, XCircle } from "lucide-rea
 import { useAccount as useStarknetAccount, useConnect, useDisconnect } from "@starknet-react/core"
 import { StarknetkitConnector, useStarknetkitConnectModal } from "starknetkit"
 import { OrderService } from "@/services/orderService"
-import { useEthereumApproveToken, useStarknetApproveToken } from "@/services"
+import { useEthereumApproveToken, useStarknetApproveToken, useEthereumClaimDestinationFunds, useStarknetClaimDestinationFunds } from "@/services"
 
 interface Chain {
   id: string
@@ -36,7 +36,7 @@ export function SwapInterface() {
   const [isApproved, setIsApproved] = useState(false)
   const [isPlacingOrder, setIsPlacingOrder] = useState(false)
   const [orderStatus, setOrderStatus] = useState<string>("")
-  const [secret, setSecret] = useState("my-secret-key-123") // In production, this should be generated securely
+  const [secret, setSecret] = useState("0xabcdef") // In production, this should be generated securely
   
   // Approval state
   const [approvalStatus, setApprovalStatus] = useState<'idle' | 'pending' | 'success' | 'error'>('idle')
@@ -65,6 +65,10 @@ export function SwapInterface() {
   // Approve token hooks
   const { approveUSDCToMax: approveEthereumUSDC, isPending: isEthereumApproving } = useEthereumApproveToken()
   const { approveUSDCToMax: approveStarknetUSDC, isPending: isStarknetApproving } = useStarknetApproveToken()
+  
+  // Claim hooks
+  const { claimFunds: claimEthereumFunds, pendingHash: ethereumPendingHash } = useEthereumClaimDestinationFunds()
+  const { claimDestinationFunds: claimStarknetFunds, setEscrowAddress: setStarknetEscrowAddress, setSecret: setStarknetSecret, isPending: isStarknetClaiming } = useStarknetClaimDestinationFunds()
 
   useEffect(() => {
     
@@ -72,6 +76,8 @@ export function SwapInterface() {
     console.log("disconnected ethereum")
     disconnectStarknet()
     console.log("disconnected starknet")
+    const encoder = new TextEncoder();
+    console.log("🔍 secret:", encoder.encode("0xabcdef"))
 
   }, [])
 
@@ -359,25 +365,50 @@ export function SwapInterface() {
       }
     } else if (buttonState.action === "claim") {
       try {
-        // Claim funds from destination escrow
-        const destinationAddress = destinationChain === "sepolia" ? ethereumAddress : starknetAddress
+        setOrderStatus("Fetching order details...")
         
-        if (!destinationAddress) {
-          throw new Error("Destination address not available")
+        // Fetch order details to get destination escrow address
+        const orderResponse = await fetch(`http://localhost:3001/orders/${orderId}`)
+        if (!orderResponse.ok) {
+          throw new Error('Failed to fetch order details')
+        }
+        
+        const orderData = await orderResponse.json()
+        const assignment = orderData.assignment
+        
+        if (!assignment) {
+          throw new Error('Assignment not found')
+        }
+        
+        const destEscrowAddress = assignment.dstEscrowAddress
+        if (!destEscrowAddress) {
+          throw new Error('Destination escrow address not found')
         }
         
         setOrderStatus("Claiming funds from destination escrow...")
         
+        let claimTxHash = ""
+        
         // Call claim function based on destination chain
         if (destinationChain === "sepolia") {
           // Use Ethereum claim service
-          // This would need to be implemented
-          console.log("Claiming on Ethereum with secret:", secret)
+          claimTxHash = await claimEthereumFunds(secret, destEscrowAddress)
+          // Use pending hash if available
+          if (ethereumPendingHash) {
+            claimTxHash = ethereumPendingHash
+          }
         } else if (destinationChain === "starknet") {
           // Use Starknet claim service
-          // This would need to be implemented
-          console.log("Claiming on Starknet with secret:", secret)
+          console.log("🔍 Claiming funds for Starknet")
+          console.log("🔍 Setting escrow address:", destEscrowAddress)
+          console.log("🔍 Setting secret:", secret)
+          setStarknetEscrowAddress(destEscrowAddress)
+          setStarknetSecret(secret)
+          claimTxHash = await claimStarknetFunds()
+          console.log("🔍 Claimed funds for Starknet", claimTxHash)
         }
+        
+        setOrderStatus(`Claim transaction submitted: ${claimTxHash}`)
         
         // Upload secret to relayer
         const uploadResponse = await fetch(`http://localhost:3001/orders/${orderId}/upload-secret`, {
@@ -387,7 +418,7 @@ export function SwapInterface() {
           },
           body: JSON.stringify({
             secret: secret,
-            claimTxHash: "0x..." // Would be actual tx hash
+            destinationTxHash: claimTxHash
           }),
         })
         

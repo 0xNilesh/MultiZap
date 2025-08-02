@@ -170,10 +170,13 @@ export class OrderService {
     order.status = completionData.status;
     await order.save();
 
-    // Update assignment status
+    // Update assignment status and store src claim tx hash
     const assignment = await ResolverAssignment.findOne({ orderId });
     if (assignment) {
       assignment.status = completionData.status === 'completed' ? 'completed' : 'failed';
+      if (completionData.details?.srcClaimTx) {
+        assignment.srcClaimTxHash = completionData.details.srcClaimTx;
+      }
       await assignment.save();
     }
 
@@ -283,7 +286,7 @@ export class OrderService {
 
     // Update assignment with secret and destination tx hash
     assignment.secret = secret;
-    assignment.claimTxHash = destinationTxHash; // This is the destination claim tx hash
+    assignment.destClaimTxHash = destinationTxHash; // This is the destination claim tx hash
     assignment.status = 'claimed_src';
     await assignment.save();
 

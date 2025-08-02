@@ -13,7 +13,8 @@ export interface IResolverAssignment extends Document {
   fillAmount?: string;
   takeAmount?: string;
   secret?: string;
-  claimTxHash?: string;
+  destClaimTxHash?: string;
+  srcClaimTxHash?: string;
   status: 'assigned' | 'src_deployed' | 'dst_deployed' | 'claimed_src' | 'completed' | 'failed';
 }
 
@@ -29,7 +30,8 @@ const ResolverAssignmentSchema = new Schema<IResolverAssignment>({
   fillAmount: { type: String, default: null },
   takeAmount: { type: String, default: null },
   secret: { type: String, default: null },
-  claimTxHash: { type: String, default: null },
+  destClaimTxHash: { type: String, default: null },
+  srcClaimTxHash: { type: String, default: null },
   status: { 
     type: String, 
     required: true, 

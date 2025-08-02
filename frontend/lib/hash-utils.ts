@@ -9,13 +9,13 @@ function stringToBytes(str: string): Uint8Array {
 export function generateKeccakHash(secret: string): string {
   try {
     // Convert string to bytes
-    const bytes = stringToBytes(secret);
+    const bytes = secret;
     
     // Convert to hex string
-    const hexString = '0x' + Array.from(bytes).map(b => b.toString(16).padStart(2, '0')).join('');
+    // const hexString = '0x' + Array.from(bytes).map(b => b.toString(16).padStart(2, '0')).join('');
     
     // Generate Keccak hash (matches EVM keccak256)
-    const hash = keccak256(hexString);
+    const hash = keccak256(secret);
     
     return hash;
   } catch (error) {
