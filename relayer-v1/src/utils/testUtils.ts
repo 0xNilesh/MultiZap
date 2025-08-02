@@ -9,13 +9,15 @@ export class TestUtils {
     const currentTime = Math.floor(Date.now() / 1000);
     return {
       makerAddress: '0x742d35Cc6634C0532925a3b8D4C9db96C4b4d8b6',
+      takerAddress: '0xDestinationAddress1234567890abcdef1234567890abcdef', // Destination address
       makerChain: 'ethereum',
       takerChain: 'starknet',
       makingAmount: '100000000', // 100 USDC
       takingAmount: '99000000',   // 99 USDC
       makerAsset: '0xA0b86a33E6441b8c4C8C8C8C8C8C8C8C8C8C8C8C8',
       takerAsset: '0x053c91253bc9682c04929ca02ed00b3e423f6710d2ee7e0d5ebb06f3ecf56a5',
-      hashlock: '0x1234567890abcdef1234567890abcdef1234567890abcdef1234567890abcdef',
+      ethereumHashlock: '0x1234567890abcdef1234567890abcdef1234567890abcdef1234567890abcdef', // Ethereum hashlock
+      starknetHashlock: '0xabcdef1234567890abcdef1234567890abcdef1234567890abcdef1234567890', // Starknet hashlock
       timelocks: {
         srcWithdrawal: 10,
         dstWithdrawal: 10
@@ -79,15 +81,19 @@ export class TestUtils {
    */
   static testHashlock() {
     const secret = 'my-secret-key-123';
-    const hashlock = ChainUtils.generateHashlock(secret);
-    const isValid = ChainUtils.verifyHashlock(secret, hashlock);
+    const ethereumHashlock = ChainUtils.generateHashlock(secret);
+    const starknetHashlock = ChainUtils.generateHashlock(secret); // For now using same, but could be different
+    const isValidEthereum = ChainUtils.verifyHashlock(secret, ethereumHashlock);
+    const isValidStarknet = ChainUtils.verifyHashlock(secret, starknetHashlock);
     
     console.log('Hashlock Test:');
     console.log('Secret:', secret);
-    console.log('Generated Hashlock:', hashlock);
-    console.log('Verification Result:', isValid);
+    console.log('Generated Ethereum Hashlock:', ethereumHashlock);
+    console.log('Generated Starknet Hashlock:', starknetHashlock);
+    console.log('Ethereum Verification Result:', isValidEthereum);
+    console.log('Starknet Verification Result:', isValidStarknet);
     
-    return isValid;
+    return isValidEthereum && isValidStarknet;
   }
 
   /**

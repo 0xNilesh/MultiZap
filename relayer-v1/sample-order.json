@@ -1,0 +1,22 @@
+{
+  "makerAddress": "0x742d35Cc6634C0532925a3b8D4C9db96C4b4d8b6",
+  "takerAddress": "0xDestinationAddress1234567890abcdef1234567890abcdef",
+  "makerChain": "ethereum",
+  "takerChain": "starknet",
+  "makingAmount": "100000000",
+  "takingAmount": "95000000",
+  "makerAsset": "0x7ddA7FBe5CC89791791c284E0c55c6c7B75631fA",
+  "takerAsset": "0x058458d1b17fccd0431dd3e83e0184d45f93b229ad03b3337770730245bd5e34",
+  "ethereumHashlock": "0x6b9712b683ef06882f441c406553e16802e50b67223712ef7a0d1a0d3fe48fb6",
+  "starknetHashlock": "0x6b9712b683ef06882f441c406553e16802e50b67223712ef7a0d1a0d3fe48fb6",
+  "timelocks": {
+    "srcWithdrawal": 10,
+    "dstWithdrawal": 10
+  },
+  "auction": {
+    "duration": 120,
+    "startTime": 1754062561
+  },
+  "signature": "0x1234567890abcdef1234567890abcdef1234567890abcdef1234567890abcdef",
+  "orderNonce": "test-order-163"
+} 

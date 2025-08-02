@@ -3,13 +3,15 @@ import mongoose, { Document, Schema } from 'mongoose';
 export interface IOrder extends Document {
   _id: string;
   makerAddress: string;
+  takerAddress: string; // Destination address
   makerChain: string;
   takerChain: string;
   makingAmount: string;
   takingAmount: string;
   makerAsset: string;
   takerAsset: string;
-  hashlock: string;
+  ethereumHashlock: string; // Ethereum hashlock
+  starknetHashlock: string; // Starknet hashlock
   secretRevealed: boolean;
   auction: {
     duration: number;
@@ -28,13 +30,15 @@ export interface IOrder extends Document {
 
 const OrderSchema = new Schema<IOrder>({
   makerAddress: { type: String, required: true, index: true },
+  takerAddress: { type: String, required: true }, // Destination address
   makerChain: { type: String, required: true },
   takerChain: { type: String, required: true },
   makingAmount: { type: String, required: true },
   takingAmount: { type: String, required: true },
   makerAsset: { type: String, required: true },
   takerAsset: { type: String, required: true },
-  hashlock: { type: String, required: true, index: true },
+  ethereumHashlock: { type: String, required: true, index: true }, // Ethereum hashlock
+  starknetHashlock: { type: String, required: true, index: true }, // Starknet hashlock
   secretRevealed: { type: Boolean, default: false },
   auction: {
     duration: { type: Number, required: true },

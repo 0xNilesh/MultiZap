@@ -182,13 +182,38 @@ Finalize order status.
 **Request Body**:
 ```json
 {
-  "status": "filled",
+  "status": "completed",
   "details": {
-    "srcClaimTx": "0x...",
-    "dstClaimTx": "0x...",
-    "resolverPayout": "1000000",
-    "makerReceived": "99000000"
+    "srcClaimTx": "0x..."
   }
+}
+```
+
+#### POST /orders/:orderId/upload-secret
+Upload secret after user claims from source escrow.
+
+**Request Body**:
+```json
+{
+  "secret": "my-secret-key-123",
+  "claimTxHash": "0x..."
+}
+```
+
+**Response**:
+```json
+{
+  "success": true
+}
+```
+
+#### GET /orders/:orderId/get-secret
+Get secret for resolver to claim from destination escrow.
+
+**Response**:
+```json
+{
+  "secret": "my-secret-key-123"
 }
 ```
 
@@ -245,7 +270,7 @@ Resolvers poll `/orders?status=pending_auction` and accept when `currentBump >= 
   "_id": "uuid",
   "orderId": "uuid",
   "resolverAddress": "string",
-  "effectiveBump": 0.032,
+  "effectiveAmount": "string",
   "assignedAt": "ISODate",
   "srcEscrowAddress": "string",
   "dstEscrowAddress": "string",
@@ -253,6 +278,8 @@ Resolvers poll `/orders?status=pending_auction` and accept when `currentBump >= 
   "dstTimelock": "number",
   "fillAmount": "string",
   "takeAmount": "string",
+  "secret": "string",
+  "claimTxHash": "string",
   "status": "assigned"
 }
 ```

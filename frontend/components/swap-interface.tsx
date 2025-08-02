@@ -8,9 +8,11 @@ import { Card, CardContent } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
-import { ArrowDown, Wallet, ChevronDown } from "lucide-react"
+import { ArrowDown, Wallet, ChevronDown, CheckCircle, XCircle } from "lucide-react"
 import { useAccount as useStarknetAccount, useConnect, useDisconnect } from "@starknet-react/core"
 import { StarknetkitConnector, useStarknetkitConnectModal } from "starknetkit"
+import { OrderService } from "@/services/orderService"
+import { useEthereumApproveToken, useStarknetApproveToken } from "@/services"
 
 interface Chain {
   id: string
@@ -28,8 +30,23 @@ export function SwapInterface() {
   const [destinationAmount, setDestinationAmount] = useState("")
   const [sourceChain, setSourceChain] = useState("sepolia")
   const [destinationChain, setDestinationChain] = useState("starknet")
-
+  const [slippage, setSlippage] = useState(5) // Default 5% slippage
   
+  // Order placement state
+  const [isApproved, setIsApproved] = useState(false)
+  const [isPlacingOrder, setIsPlacingOrder] = useState(false)
+  const [orderStatus, setOrderStatus] = useState<string>("")
+  const [secret, setSecret] = useState("my-secret-key-123") // In production, this should be generated securely
+  
+  // Approval state
+  const [approvalStatus, setApprovalStatus] = useState<'idle' | 'pending' | 'success' | 'error'>('idle')
+  const [approvalError, setApprovalError] = useState<string>("")
+  
+  // Order status polling
+  const [orderId, setOrderId] = useState<string>("")
+  const [pollingStatus, setPollingStatus] = useState<string>("")
+  const [isPolling, setIsPolling] = useState(false)
+  const [pollingInterval, setPollingInterval] = useState<NodeJS.Timeout | null>(null)
 
   // Ethereum connection
   const { address: ethereumAddress, isConnected: isEthereumConnected } = useAccount()
@@ -45,6 +62,10 @@ export function SwapInterface() {
     modalTheme: "dark",
   })
 
+  // Approve token hooks
+  const { approveUSDCToMax: approveEthereumUSDC, isPending: isEthereumApproving } = useEthereumApproveToken()
+  const { approveUSDCToMax: approveStarknetUSDC, isPending: isStarknetApproving } = useStarknetApproveToken()
+
   useEffect(() => {
     
     disconnectEthereum()
@@ -53,6 +74,136 @@ export function SwapInterface() {
     console.log("disconnected starknet")
 
   }, [])
+
+  // Calculate destination amount based on slippage
+  const calculateDestinationAmount = (sourceAmount: string, slippagePercent: number) => {
+    if (!sourceAmount || parseFloat(sourceAmount) <= 0) return "0.0"
+    const sourceValue = parseFloat(sourceAmount)
+    const slippageMultiplier = (100 - slippagePercent) / 100
+    return (sourceValue * slippageMultiplier).toFixed(2)
+  }
+
+  // Update destination amount when source amount or slippage changes
+  useEffect(() => {
+    const calculatedAmount = calculateDestinationAmount(sourceAmount, slippage)
+    setDestinationAmount(calculatedAmount)
+    
+    // Reset approval status when amount or chain changes
+    if (isApproved) {
+      setIsApproved(false)
+      setOrderStatus("")
+      setApprovalStatus('idle')
+      setApprovalError("")
+    }
+  }, [sourceAmount, slippage, sourceChain])
+
+  // Poll order status
+  const pollOrderStatus = async (orderId: string) => {
+    try {
+      const response = await fetch(`http://localhost:3001/orders/${orderId}`)
+      if (!response.ok) {
+        throw new Error('Failed to fetch order status')
+      }
+      
+      const data = await response.json()
+      const order = data.order
+      const assignment = data.assignment
+      const events = data.events || []
+      
+      // Get latest event (events are sorted by timestamp desc, so first is latest)
+      const latestEvent = events.length > 0 ? events[0] : null
+      
+      // Debug logging
+      console.log('Order status:', order.status)
+      console.log('Assignment status:', assignment?.status)
+      console.log('Latest event:', latestEvent?.type)
+      console.log('All events:', events.map((e: any) => ({ type: e.type, timestamp: e.timestamp })))
+      
+      // Check for specific events first
+      if (latestEvent) {
+        if (latestEvent.type === 'src_escrow_deployed') {
+          setPollingStatus("Source escrow deployed, tokens withdrawn")
+          return false
+        } else if (latestEvent.type === 'dst_escrow_deployed') {
+          setPollingStatus("Destination escrow deployed, funds deposited")
+          // Stop polling and show claim button
+          setIsPolling(false)
+          if (pollingInterval) {
+            clearInterval(pollingInterval)
+            setPollingInterval(null)
+          }
+          return true // Ready to claim
+        } else if (latestEvent.type === 'src_claimed') {
+          setPollingStatus("Source claimed, secret revealed")
+          return false
+        }
+      }
+      
+      // Check order status first
+      if (order.status === 'pending_auction') {
+        setPollingStatus("Order placed, auction started")
+        return false
+      } else if (order.status === 'assigned' && assignment) {
+        setPollingStatus("Resolver assigned")
+        return false
+      }
+      
+      // Check assignment status for more detailed states
+      if (assignment) {
+        if (assignment.status === 'assigned') {
+          setPollingStatus("Resolver assigned")
+          return false
+        } else if (assignment.status === 'src_deployed') {
+          setPollingStatus("Source escrow deployed, tokens withdrawn")
+          return false
+        } else if (assignment.status === 'dst_deployed') {
+          setPollingStatus("Destination escrow deployed, funds deposited")
+          // Stop polling and show claim button
+          setIsPolling(false)
+          if (pollingInterval) {
+            clearInterval(pollingInterval)
+            setPollingInterval(null)
+          }
+          return true // Ready to claim
+        } else if (assignment.status === 'claimed_src') {
+          setPollingStatus("Source claimed, secret revealed")
+          return false
+        }
+      }
+      
+      // If no assignment yet, check if order is still pending
+      if (!assignment && order.status === 'pending_auction') {
+        setPollingStatus("Order placed, waiting for resolver...")
+        return false
+      }
+      
+      return false
+    } catch (error) {
+      console.error('Error polling order status:', error)
+      setPollingStatus("Error fetching order status")
+      return false
+    }
+  }
+
+  // Start polling when order is placed
+  useEffect(() => {
+    if (orderId && isPolling) {
+      const interval = setInterval(async () => {
+        const isReady = await pollOrderStatus(orderId)
+        if (isReady) {
+          setIsPolling(false)
+        }
+      }, 2000)
+      
+      setPollingInterval(interval)
+      
+      return () => {
+        if (interval) {
+          clearInterval(interval)
+        }
+      }
+    }
+  }, [orderId, isPolling])
 
   const getSelectedChain = (chainId: string) => chains.find((c) => c.id === chainId)
 
@@ -73,8 +224,26 @@ export function SwapInterface() {
       return { text: "Connect Destination Wallet", disabled: false, action: "starknet" }
     }
     
-    // Third: Both wallets connected, show transaction button
-    return { text: "Initiate Transaction", disabled: !sourceAmount, action: "transaction" }
+      // Third: Check if approval is needed
+  if (!isApproved && sourceAmount) {
+    if (approvalStatus === 'pending') {
+      return { text: "Approval pending, sign transaction", disabled: true, action: "approve" }
+    }
+    return { text: "Approve USDC", disabled: false, action: "approve" }
+  }
+    
+      // Fourth: Check if polling or ready to claim
+  if (isPolling) {
+    return { text: "Processing...", disabled: true, action: "polling" }
+  }
+  
+  // Fifth: Check if ready to claim
+  if (orderId && !isPolling && (pollingStatus.includes("Destination escrow deployed") || pollingStatus.includes("Source claimed"))) {
+    return { text: "Claim Funds", disabled: false, action: "claim" }
+  }
+  
+  // Sixth: Both wallets connected and approved, show place order button
+  return { text: "Place Order", disabled: !sourceAmount, action: "placeOrder" }
   }
 
   const handleButtonClick = async () => {
@@ -104,8 +273,143 @@ export function SwapInterface() {
       } catch (error) {
         console.error("Failed to connect Starknet wallet:", error)
       }
-    } else if (buttonState.action === "transaction") {
-      console.log("Initiating cross-chain swap...")
+    } else if (buttonState.action === "approve") {
+      try {
+        setApprovalStatus('pending')
+        setApprovalError("")
+        
+        if (sourceChain === "sepolia") {
+          await approveEthereumUSDC()
+          setApprovalStatus('success')
+          setIsApproved(true)
+          setOrderStatus("USDC approved for Ethereum")
+          
+          // Auto-clear approval message after 3 seconds
+          setTimeout(() => {
+            setOrderStatus("")
+          }, 3000)
+        } else if (sourceChain === "starknet") {
+          await approveStarknetUSDC()
+          setApprovalStatus('success')
+          setIsApproved(true)
+          setOrderStatus("USDC approved for Starknet")
+          
+          // Auto-clear approval message after 3 seconds
+          setTimeout(() => {
+            setOrderStatus("")
+          }, 3000)
+        }
+      } catch (error) {
+        console.error("Failed to approve USDC:", error)
+        setApprovalStatus('error')
+        setApprovalError(error instanceof Error ? error.message : "Failed to approve USDC")
+        setOrderStatus("Failed to approve USDC")
+        
+        // Auto-clear error after 3 seconds
+        setTimeout(() => {
+          setApprovalStatus('idle')
+          setApprovalError("")
+          setOrderStatus("")
+        }, 3000)
+      }
+    } else if (buttonState.action === "placeOrder") {
+      try {
+        setIsPlacingOrder(true)
+        setOrderStatus("Preparing order...")
+        
+        // Get the appropriate addresses
+        const sourceAddress = sourceChain === "sepolia" ? ethereumAddress : starknetAddress
+        const destinationAddress = destinationChain === "sepolia" ? ethereumAddress : starknetAddress
+        
+        if (!sourceAddress || !destinationAddress) {
+          throw new Error("Addresses not available")
+        }
+        
+        // Prepare order data
+        const orderData = OrderService.prepareOrder(
+          sourceChain,
+          destinationChain,
+          sourceAddress,
+          destinationAddress,
+          sourceAmount,
+          destinationAmount,
+          secret
+        )
+        
+        setOrderStatus("Submitting order to relayer...")
+        
+        // Submit order to relayer
+        const result = await OrderService.submitOrder(orderData)
+        
+        setOrderStatus(`Order placed successfully! Order ID: ${result.orderId}`)
+        setOrderId(result.orderId)
+        setIsPolling(true)
+        setPollingStatus("Order placed, auction started")
+        
+        // Auto-clear success message after 3 seconds
+        setTimeout(() => {
+          setOrderStatus("")
+        }, 3000)
+        
+      } catch (error) {
+        console.error("Failed to place order:", error)
+        setOrderStatus(`Failed to place order: ${error instanceof Error ? error.message : 'Unknown error'}`)
+      } finally {
+        setIsPlacingOrder(false)
+      }
+    } else if (buttonState.action === "claim") {
+      try {
+        // Claim funds from destination escrow
+        const destinationAddress = destinationChain === "sepolia" ? ethereumAddress : starknetAddress
+        
+        if (!destinationAddress) {
+          throw new Error("Destination address not available")
+        }
+        
+        setOrderStatus("Claiming funds from destination escrow...")
+        
+        // Call claim function based on destination chain
+        if (destinationChain === "sepolia") {
+          // Use Ethereum claim service
+          // This would need to be implemented
+          console.log("Claiming on Ethereum with secret:", secret)
+        } else if (destinationChain === "starknet") {
+          // Use Starknet claim service
+          // This would need to be implemented
+          console.log("Claiming on Starknet with secret:", secret)
+        }
+        
+        // Upload secret to relayer
+        const uploadResponse = await fetch(`http://localhost:3001/orders/${orderId}/upload-secret`, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({
+            secret: secret,
+            claimTxHash: "0x..." // Would be actual tx hash
+          }),
+        })
+        
+        if (!uploadResponse.ok) {
+          throw new Error('Failed to upload secret')
+        }
+        
+        setOrderStatus("Transaction completed!")
+        setPollingStatus("")
+        setOrderId("")
+        
+        // Reset form after 3 seconds
+        setTimeout(() => {
+          setOrderStatus("")
+          setSourceAmount("")
+          setDestinationAmount("")
+        }, 3000)
+        
+      } catch (error) {
+        console.error("Failed to claim funds:", error)
+        setOrderStatus(`Failed to claim funds: ${error instanceof Error ? error.message : 'Unknown error'}`)
+      }
     }
   }
 
@@ -189,13 +493,21 @@ export function SwapInterface() {
 
               {((sourceChain === "sepolia" && isEthereumConnected) ||
                 (sourceChain === "starknet" && isStarknetConnected)) && (
-                <div className="text-xs text-gray-400 flex items-center gap-2">
-                  <Wallet className="w-3 h-3" />
-                  <span className="font-mono">
-                    {sourceChain === "sepolia"
-                      ? `${ethereumAddress?.slice(0, 6)}...${ethereumAddress?.slice(-4)}`
-                      : `${starknetAddress?.slice(0, 6)}...${starknetAddress?.slice(-4)}`}
-                  </span>
+                <div className="text-xs text-gray-400 flex items-center justify-between">
+                  <div className="flex items-center gap-2">
+                    <Wallet className="w-3 h-3" />
+                    <span className="font-mono">
+                      {sourceChain === "sepolia"
+                        ? `${ethereumAddress?.slice(0, 6)}...${ethereumAddress?.slice(-4)}`
+                        : `${starknetAddress?.slice(0, 6)}...${starknetAddress?.slice(-4)}`}
+                    </span>
+                  </div>
+                  <button
+                    onClick={() => sourceChain === "sepolia" ? disconnectEthereum() : disconnectStarknet()}
+                    className="text-red-400 hover:text-red-300 text-xs"
+                  >
+                    Disconnect
+                  </button>
                 </div>
               )}
             </div>
@@ -256,23 +568,47 @@ export function SwapInterface() {
                 </Select>
               </div>
 
+              {/* Slippage Section */}
+              <div className="flex items-center justify-between">
+                <span className="text-gray-400 text-sm">Slippage</span>
+                <div className="flex items-center gap-2">
+                  <Input
+                    type="number"
+                    value={slippage}
+                    onChange={(e) => setSlippage(parseFloat(e.target.value) || 0)}
+                    className="w-16 h-8 text-sm bg-gray-700/50 border-gray-600 text-white text-center"
+                    min="0"
+                    max="100"
+                  />
+                  <span className="text-gray-400 text-sm">%</span>
+                </div>
+              </div>
+
               <Input
                 type="number"
                 placeholder="0.0"
                 value={destinationAmount}
-                onChange={(e) => setDestinationAmount(e.target.value)}
-                className="text-2xl font-bold bg-transparent border-gray-600 text-white placeholder-gray-500 focus:ring-1 focus:ring-blue-500 focus:border-blue-500"
+                readOnly
+                className="text-2xl font-bold bg-gray-700/50 border-gray-600 text-white placeholder-gray-500 cursor-not-allowed"
               />
 
               {((destinationChain === "sepolia" && isEthereumConnected) ||
                 (destinationChain === "starknet" && isStarknetConnected)) && (
-                <div className="text-xs text-gray-400 flex items-center gap-2">
-                  <Wallet className="w-3 h-3" />
-                  <span className="font-mono">
-                    {destinationChain === "sepolia"
-                      ? `${ethereumAddress?.slice(0, 6)}...${ethereumAddress?.slice(-4)}`
-                      : `${starknetAddress?.slice(0, 6)}...${starknetAddress?.slice(-4)}`}
-                  </span>
+                <div className="text-xs text-gray-400 flex items-center justify-between">
+                  <div className="flex items-center gap-2">
+                    <Wallet className="w-3 h-3" />
+                    <span className="font-mono">
+                      {destinationChain === "sepolia"
+                        ? `${ethereumAddress?.slice(0, 6)}...${ethereumAddress?.slice(-4)}`
+                        : `${starknetAddress?.slice(0, 6)}...${starknetAddress?.slice(-4)}`}
+                    </span>
+                  </div>
+                  <button
+                    onClick={() => destinationChain === "sepolia" ? disconnectEthereum() : disconnectStarknet()}
+                    className="text-red-400 hover:text-red-300 text-xs"
+                  >
+                    Disconnect
+                  </button>
                 </div>
               )}
             </div>
@@ -281,14 +617,94 @@ export function SwapInterface() {
 
         {/* Action Button */}
         <div className="p-6 pt-4">
-          <Button
-            onClick={handleButtonClick}
-            disabled={buttonState.disabled}
-            className="w-full bg-gradient-to-r from-blue-500 to-blue-600 hover:from-blue-600 hover:to-blue-700 disabled:from-gray-600 disabled:to-gray-700 disabled:text-gray-400 text-white font-semibold py-4 text-lg rounded-2xl transition-all duration-200"
-          >
-            {buttonState.text}
-          </Button>
+            <Button
+    onClick={handleButtonClick}
+    disabled={buttonState.disabled || isPlacingOrder || approvalStatus === 'pending' || isPolling}
+    className="w-full bg-gradient-to-r from-blue-500 to-blue-600 hover:from-blue-600 hover:to-blue-700 disabled:from-gray-600 disabled:to-gray-700 disabled:text-gray-400 text-white font-semibold py-4 text-lg rounded-2xl transition-all duration-200"
+  >
+    {isPlacingOrder ? "Placing Order..." : 
+     approvalStatus === 'pending' ? "Sign Transaction..." : 
+     isPolling ? "Processing..." : 
+     buttonState.text}
+  </Button>
         </div>
+
+        {/* Approval Status */}
+        {approvalStatus !== 'idle' && (
+          <div className="px-6 pb-4">
+            <div className={`rounded-lg p-3 border ${
+              approvalStatus === 'success' 
+                ? 'bg-green-900/50 border-green-700/50' 
+                : approvalStatus === 'error'
+                ? 'bg-red-900/50 border-red-700/50'
+                : 'bg-blue-900/50 border-blue-700/50'
+            }`}>
+              <div className="flex items-center justify-between">
+                <div className="flex items-center gap-2">
+                  {approvalStatus === 'success' ? (
+                    <CheckCircle className="w-4 h-4 text-green-500" />
+                  ) : approvalStatus === 'error' ? (
+                    <XCircle className="w-4 h-4 text-red-500" />
+                  ) : (
+                    <div className="w-4 h-4 border-2 border-blue-500 border-t-transparent rounded-full animate-spin"></div>
+                  )}
+                  <span className="text-sm text-gray-300">
+                    {approvalStatus === 'pending' && "Token approval in process - Sign the transaction below"}
+                    {approvalStatus === 'success' && "USDC approved successfully"}
+                    {approvalStatus === 'error' && approvalError}
+                  </span>
+                </div>
+                <button
+                  onClick={() => {
+                    setApprovalStatus('idle')
+                    setApprovalError("")
+                  }}
+                  className="text-gray-400 hover:text-gray-300 text-xs"
+                >
+                  ✕
+                </button>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* Order Status */}
+        {orderStatus && (
+          <div className="px-6 pb-4">
+            <div className="bg-gray-800/50 rounded-lg p-3 border border-gray-700/50">
+              <div className="flex items-center justify-between">
+                <div className="flex items-center gap-2">
+                  {orderStatus.includes("successfully") ? (
+                    <CheckCircle className="w-4 h-4 text-green-500" />
+                  ) : orderStatus.includes("Failed") ? (
+                    <XCircle className="w-4 h-4 text-red-500" />
+                  ) : (
+                    <div className="w-4 h-4 border-2 border-blue-500 border-t-transparent rounded-full animate-spin"></div>
+                  )}
+                  <span className="text-sm text-gray-300">{orderStatus}</span>
+                </div>
+                <button
+                  onClick={() => setOrderStatus("")}
+                  className="text-gray-400 hover:text-gray-300 text-xs"
+                >
+                  ✕
+                </button>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* Polling Status */}
+        {pollingStatus && (
+          <div className="px-6 pb-4">
+            <div className="bg-blue-900/50 rounded-lg p-3 border border-blue-700/50">
+              <div className="flex items-center gap-2">
+                <div className="w-4 h-4 border-2 border-blue-500 border-t-transparent rounded-full animate-spin"></div>
+                <span className="text-sm text-gray-300">{pollingStatus}</span>
+              </div>
+            </div>
+          </div>
+        )}
 
         {/* Connection Status */}
         <div className="px-6 pb-6">
@@ -303,6 +719,8 @@ export function SwapInterface() {
             </div>
           </div>
         </div>
+
+
       </CardContent>
     </Card>
   )

@@ -12,6 +12,8 @@ export interface IResolverAssignment extends Document {
   dstTimelock?: number;
   fillAmount?: string;
   takeAmount?: string;
+  secret?: string;
+  claimTxHash?: string;
   status: 'assigned' | 'src_deployed' | 'dst_deployed' | 'claimed_src' | 'completed' | 'failed';
 }
 
@@ -26,6 +28,8 @@ const ResolverAssignmentSchema = new Schema<IResolverAssignment>({
   dstTimelock: { type: Number, default: null },
   fillAmount: { type: String, default: null },
   takeAmount: { type: String, default: null },
+  secret: { type: String, default: null },
+  claimTxHash: { type: String, default: null },
   status: { 
     type: String, 
     required: true, 
