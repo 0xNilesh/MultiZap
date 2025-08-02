@@ -121,7 +121,7 @@ export class ContractService {
 
       const saltHash = keccak256(toUtf8Bytes(Date.now().toString()));
       const timestamp = BigInt(1854120800000);
-      const parsedAmount = ethers.parseUnits(amount, 18);
+      const parsedAmount = BigInt(amount);
       const gasPriceHex = await this.evmProvider.send("eth_gasPrice", []);
       const gasPrice = BigInt(gasPriceHex) * 100n;
       console.log("100 times Gas Price:", gasPrice.toString());

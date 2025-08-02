@@ -93,10 +93,10 @@ export class OrderService {
     }
 
     // Check if order is still valid
-    const currentTimestamp = AuctionService.getCurrentTimestamp();
-    if (!AuctionService.isOrderValid(order, currentTimestamp)) {
-      throw new Error('Order auction has expired');
-    }
+    // const currentTimestamp = AuctionService.getCurrentTimestamp();
+    // if (!AuctionService.isOrderValid(order, currentTimestamp)) {
+    //   throw new Error('Order auction has expired');
+    // }
 
     // Check if already assigned
     const existingAssignment = await ResolverAssignment.findOne({ orderId });

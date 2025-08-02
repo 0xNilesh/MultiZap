@@ -10,7 +10,7 @@ export const CONTRACT_ADDRESSES = {
 export const CHAIN_CONFIG = {
   EVM: {
     CONFIRMATION_BLOCKS: 1, // For Sepolia
-    GAS_LIMIT: 2000000
+    GAS_LIMIT: 3000000
   },
   STARKNET: {
     MAX_FEE: 1000000000000000

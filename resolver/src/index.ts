@@ -86,10 +86,10 @@ class ResolverServer {
       //   { status: OrderStatus.ASSIGNED }
       // );
 
-      // const srcMaker = order.makerChain == "ethereum" ? order.makerAddress : env.RESOLVER_ADDRESS;
-      // const srcTaker = order.makerAddress == "ethereum" ? env.RESOLVER_ADDRESS: order.makerAddress;
+      // const srcMaker = order.makerChain == "sepolia" ? order.makerAddress : env.RESOLVER_ADDRESS;
+      // const srcTaker = order.makerAddress == "sepolia" ? env.RESOLVER_ADDRESS: order.makerAddress;
 
-      //   if (order.makerChain == "ethereum") {
+      //   if (order.makerChain == "sepolia") {
       //     // Deploy source chain HTLC
       //     const srcEscrowAddress = await this.contractService.deployEvmEscrow(
       //       order.makerAddress,
@@ -156,7 +156,7 @@ class ResolverServer {
       // }
 
       // Decide which leg is "source" and which is "destination"
-      const isMakerEthereum = order.makerChain === "ethereum";
+      const isMakerEthereum = order.makerChain === "sepolia";
 
       const src = {
         chain: order.makerChain,
@@ -167,7 +167,7 @@ class ResolverServer {
       };
 
       const dst = {
-        chain: isMakerEthereum ? "starknet" : "ethereum",
+        chain: isMakerEthereum ? "starknet" : "sepolia",
         address: order.takerAddress,
         asset: order.takerAsset,
         amount: order.takingAmount,
@@ -177,7 +177,7 @@ class ResolverServer {
       // Deploy source HTLC
       let srcEscrowAddress: string;
 
-      if (src.chain === "ethereum") {
+      if (src.chain === "sepolia") {
         srcEscrowAddress = await this.contractService.deployEvmEscrow(
           src.address,
           env.RESOLVER_ADDRESS,
@@ -205,7 +205,7 @@ class ResolverServer {
       // Deploy destination HTLC
       let dstEscrowAddress: string;
 
-      if (dst.chain === "ethereum") {
+      if (dst.chain === "sepolia") {
         await this.contractService.approveEvmToken(dst.asset, dst.amount);
 
         dstEscrowAddress = await this.contractService.deployEvmEscrow(
