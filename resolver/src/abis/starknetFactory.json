@@ -1,0 +1,60 @@
+[
+  {
+    "type": "function",
+    "name": "deploy_escrow",
+    "inputs": [
+      {
+        "name": "maker",
+        "type": "felt"
+      },
+      {
+        "name": "taker",
+        "type": "felt"
+      },
+      {
+        "name": "token",
+        "type": "felt"
+      },
+      {
+        "name": "amount_low",
+        "type": "felt"
+      },
+      {
+        "name": "amount_high",
+        "type": "felt"
+      },
+      {
+        "name": "secret_hash",
+        "type": "felt"
+      },
+      {
+        "name": "timelock",
+        "type": "felt"
+      }
+    ],
+    "outputs": [
+      {
+        "name": "escrow",
+        "type": "felt"
+      }
+    ]
+  },
+  {
+    "type": "event",
+    "name": "EscrowDeployed",
+    "inputs": [
+      {
+        "name": "escrow",
+        "type": "felt"
+      },
+      {
+        "name": "maker",
+        "type": "felt"
+      },
+      {
+        "name": "taker",
+        "type": "felt"
+      }
+    ]
+  }
+]

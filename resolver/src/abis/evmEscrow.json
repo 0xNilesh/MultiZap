@@ -1,0 +1,52 @@
+{
+  "abi": [
+    {
+      "inputs": [
+        {
+          "name": "secret",
+          "type": "bytes32"
+        }
+      ],
+      "name": "claim",
+      "outputs": [],
+      "stateMutability": "nonpayable",
+      "type": "function"
+    },
+    {
+      "inputs": [],
+      "name": "refund",
+      "outputs": [],
+      "stateMutability": "nonpayable",
+      "type": "function"
+    },
+    {
+      "anonymous": false,
+      "inputs": [
+        {
+          "indexed": true,
+          "name": "claimer",
+          "type": "address"
+        },
+        {
+          "indexed": false,
+          "name": "secret",
+          "type": "bytes32"
+        }
+      ],
+      "name": "Claimed",
+      "type": "event"
+    },
+    {
+      "anonymous": false,
+      "inputs": [
+        {
+          "indexed": true,
+          "name": "refunder",
+          "type": "address"
+        }
+      ],
+      "name": "Refunded",
+      "type": "event"
+    }
+  ]
+}

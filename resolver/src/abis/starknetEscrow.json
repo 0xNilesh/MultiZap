@@ -1,0 +1,43 @@
+[
+  {
+    "type": "function",
+    "name": "claim",
+    "inputs": [
+      {
+        "name": "secret",
+        "type": "felt"
+      }
+    ],
+    "outputs": []
+  },
+  {
+    "type": "function",
+    "name": "refund",
+    "inputs": [],
+    "outputs": []
+  },
+  {
+    "type": "event",
+    "name": "Claimed",
+    "inputs": [
+      {
+        "name": "claimer",
+        "type": "felt"
+      },
+      {
+        "name": "secret",
+        "type": "felt"
+      }
+    ]
+  },
+  {
+    "type": "event",
+    "name": "Refunded",
+    "inputs": [
+      {
+        "name": "refunder",
+        "type": "felt"
+      }
+    ]
+  }
+]

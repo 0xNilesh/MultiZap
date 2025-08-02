@@ -1,0 +1,18 @@
+export const CONTRACT_ADDRESSES = {
+  EVM: {
+    FACTORY: '0xFaA252Aa73E36216de5a30ADebC4F5902cd713F3'
+  },
+  STARKNET: {
+    FACTORY: '0x01248c99473439e9e79518adff2ba5e645122591571f096f8f6cc003cc0d4d9a'
+  }
+} as const;
+
+export const CHAIN_CONFIG = {
+  EVM: {
+    CONFIRMATION_BLOCKS: 1, // For Sepolia
+    GAS_LIMIT: 2000000
+  },
+  STARKNET: {
+    MAX_FEE: 1000000000000000
+  }
+} as const;
