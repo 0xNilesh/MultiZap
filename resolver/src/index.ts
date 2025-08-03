@@ -258,7 +258,7 @@ class ResolverServer {
     logger.info("Starting resolver server...");
 
     // Check for new orders every 30 seconds
-    this.pendingJob = cron.schedule("*/30 * * * * *", async () => {
+    this.pendingJob = cron.schedule("*/7 * * * * *", async () => {
       if (this.isCheckingPending) return;
 
       this.isCheckingPending = true;
@@ -273,7 +273,7 @@ class ResolverServer {
     });
 
     // Check for claimed orders every 30 seconds
-    this.claimedJob = cron.schedule("*/30 * * * * *", async () => {
+    this.claimedJob = cron.schedule("*/7 * * * * *", async () => {
       if (this.isHandlingClaimed) return;
 
       this.isHandlingClaimed = true;
