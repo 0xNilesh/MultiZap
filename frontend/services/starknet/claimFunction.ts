@@ -3,136 +3,104 @@ import {
   useContract,
   useAccount,
 } from "@starknet-react/core";
-import type { Abi } from "starknet";
 import { STARKNET_CONFIG } from "@/config/starknet-config";
 import { useState } from "react";
-import { cairo } from "starknet";
+import { cairo , } from "starknet";
+import type { Abi } from "starknet";
 
-// Function to convert string to ByteArray format for Starknet
-// function toByteArray(str: string): bigint[] {
-//   const encoder = new TextEncoder();
-//   const bytes = encoder.encode(str); // Uint8Array
-//   const arr: bigint[] = [BigInt(bytes.length)];
-//   for (const b of bytes) arr.push(BigInt(b));
-//   console.log("🔍 toByteArray:", [arr]);
-//   return arr;
-// }
+// Helper function to convert string to ByteArray format for Starknet
+function stringToByteArray(str: string): { len: string, data: string } {
+  const encoder = new TextEncoder();
+  const bytes = Array.from(encoder.encode(str)); // e.g., "0xabcdef" -> [48,120,97,98,99,100,101,102]
+  
+  const hex = bytes.map((b) => b.toString(16).padStart(2, "0")).join("");
+  const dataHex = `0x${hex}`; // "0x3078616263646566"
+  const lenHex = bytes.length.toString(16); // "8"
+  
+  return {
+    len: lenHex,
+    data: dataHex
+  };
+}
 
-
-function hexToByteArray(hex: string): number[] {
-    if (hex.startsWith("0x")) hex = hex.slice(2);
-    if (hex.length % 2 === 1) hex = "0" + hex;
-    const bytes: number[] = [];
-    for (let i = 0; i < hex.length; i += 2) {
-      bytes.push(parseInt(hex.slice(i, i + 2), 16));
-    }
-    return bytes;
-  }
-
-function toByteArrayStruct(str: string) {
-    const encoder = new TextEncoder();
-    const bytes = Array.from(encoder.encode(str)); // [109,121,...]
-    return {
-      len: bytes.length,                 // number, not "0x11"
-      data: bytes.map((b) => b)          // array of numbers
-    };
-  }
-
-  function asciiToFelt(str: string): `0x${string}` {
-    const encoder = new TextEncoder();
-    const bytes = Array.from(encoder.encode(str)); // uint8 array
-    if (bytes.length > 31) {
-      throw new Error("String too long to pack into single felt; hash it instead");
-    }
-    let acc = 0n;
-    for (const b of bytes) {
-      acc = (acc << 8n) + BigInt(b);
-    }
-    return `0x${acc.toString(16)}` as `0x${string}`;
-  }
-
-  
-
-  // secret should be a string like "0xabcdef"
-function makeSecretParam(secret: string): [`0`, `0x${string}`, `${string}`] {
-    // keep the "0x" prefix as part of the string
-    const str = secret;
-    const encoder = new TextEncoder();
-    const bytes = Array.from(encoder.encode(str)); // ASCII bytes of "0xabcdef"
-  
-    // pack bytes into hex felt
-    let hex = "";
-    for (const b of bytes) {
-      hex += b.toString(16).padStart(2, "0");
-    }
-    const dataFelt = `0x${hex}` as `0x${string}`;
-    const lenFelt = `${bytes.length.toString(16)}` as `0x${string}`;
-  
-    return ["0", dataFelt, lenFelt];
-  }
-  
-  
-  
-  
 export function useClaimDestinationFunds() {
   const { address } = useAccount();
-  const [escrowAddress, setEscrowAddress] = useState<string>("");
-  const [secret, setSecret] = useState<string>("");
   
-  const { contract } = useContract({
-    abi: STARKNET_CONFIG.HTLC_ESCROW_ABI as Abi,
-    address: escrowAddress as `0x${string}`,
+  const { sendAsync, error, isPending } = useSendTransaction({
+    calls: undefined,
   });
-  const secret1 = asciiToFelt(secret);
 
-
-  const { send, error, isPending } = useSendTransaction({
-    calls: contract && address && secret
-      ? [contract.populate("claim", ["1","0x3078616263646566","8"])]
-      : undefined,
-  });
-  
-
-  console.log("🔍 useClaimDestinationFunds hook initialized");
-  console.log("🔍 address:", address);
-  console.log("🔍 escrowAddress:", escrowAddress);
-  console.log("🔍 secret:", secret);
-  console.log("🔍 contract:", !!contract);
-  console.log("🔍 send function:", !!send);
-  console.log("🔍 isPending:", isPending);
-  console.log("🔍 error:", error);
-
-  const claimDestinationFunds = async (): Promise<string> => {
-    console.log("🔍 claimDestinationFunds called");
-    console.log("🔍 address available:", !!address);
-    console.log("🔍 send function available:", !!send);
-    console.log("🔍 escrowAddress set:", escrowAddress);
-    console.log("🔍 secret set:", secret);
-    
+  const claimDestinationFunds = async (escrowAddress: string, secret: string): Promise<string> => {
     if (!address) {
       throw new Error("Address not available");
     }
 
-    if (!send) {
+    if (!sendAsync) {
       throw new Error("Send function not available");
     }
 
     if (!escrowAddress) {
-      throw new Error("Escrow address not set");
+      throw new Error("Escrow address not provided");
     }
 
     if (!secret) {
-      throw new Error("Secret not set");
+      throw new Error("Secret not provided");
     }
 
     try {
-      console.log("🔍 About to call send() directly");
+      console.log("🔍 About to call sendAsync with claim call");
+      console.log("🔍 Escrow address:", escrowAddress);
+      console.log("🔍 Secret:", secret);
       
-      const result = await send();
-      console.log("🔍 send() result:", result);
+      // Convert secret to ByteArray format
+      const byteArray = stringToByteArray(secret);
+      console.log("🔍 ByteArray:", byteArray);
       
-      // Return dummy hash for now since send() returns void
-      return "0x1234567890abcdef1234567890abcdef1234567890abcdef1234567890abcdef";
+      // Create the claim call with the correct format
+      const claimCall = {
+        contractAddress: escrowAddress as `0x${string}`,
+        entrypoint: "claim",
+        calldata: ["0", byteArray.data, byteArray.len], // ["0", "0x3078616263646566", "8"]
+      };
+      
+      console.log("🔍 Claim call:", claimCall);
+      
+      const result = await sendAsync([claimCall]);
+      console.log("🔍 sendAsync result:", result);
+      
+      // Wait for transaction to be confirmed
+      if (result.transaction_hash) {
+        console.log("🔍 Waiting for transaction confirmation...");
+        
+        // Poll for transaction status
+        let attempts = 0;
+        const maxAttempts = 30; // 30 seconds max wait
+        const pollInterval = 1000; // 1 second intervals
+        
+        while (attempts < maxAttempts) {
+          try {
+            // You might want to implement a proper transaction status check here
+            // For now, we'll just wait a bit and return the hash
+            await new Promise(resolve => setTimeout(resolve, pollInterval));
+            attempts++;
+            
+            // In a real implementation, you would check the transaction status
+            // For now, we'll assume it's confirmed after a few seconds
+            if (attempts >= 3) {
+              console.log("🔍 Transaction confirmed (simulated)");
+              break;
+            }
+          } catch (error) {
+            console.error("Error checking transaction status:", error);
+            break;
+          }
+        }
+        
+        return result.transaction_hash;
+      }
+      
+      // Fallback if no transaction hash
+      return "";
     } catch (error) {
       console.error("Error claiming funds:", error);
       throw error;
@@ -141,8 +109,6 @@ export function useClaimDestinationFunds() {
 
   return {
     claimDestinationFunds,
-    setEscrowAddress,
-    setSecret,
     isPending,
     error,
     isReady: !!address,

@@ -1,4 +1,6 @@
 import { generateHashes } from "@/lib/hash-utils";
+import { STARKNET_CONFIG } from "@/config/starknet-config";
+import { ETHEREUM_CONFIG } from "@/config/ethereum-config";
 
 export interface OrderData {
   makerAddress: string;
@@ -119,9 +121,9 @@ export class OrderService {
   private static getAssetAddress(chain: string): string {
     switch (chain) {
       case 'sepolia':
-        return "0x7ddA7FBe5CC89791791c284E0c55c6c7B75631fA"; // Ethereum USDC
+        return ETHEREUM_CONFIG.USDC_TOKEN;
       case 'starknet':
-        return "0x058458d1b17fccd0431dd3e83e0184d45f93b229ad03b3337770730245bd5e34"; // Starknet USDC
+        return STARKNET_CONFIG.USDC_TOKEN;
       default:
         throw new Error(`Unsupported chain: ${chain}`);
     }

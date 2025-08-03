@@ -1,9 +1,12 @@
 // Starknet Configuration
+
+import type { Abi } from "starknet";
+
 export const STARKNET_CONFIG = {
   HTLC_ESCROW_FACTORY: "0x01248c99473439e9e79518adff2ba5e645122591571f096f8f6cc003cc0d4d9a", 
   HTLC_ESCROW: "", 
   
-  USDC_TOKEN: "0x058458d1b17fccd0431dd3e83e0184d45f93b229ad03b3337770730245bd5e34", // USDC Token
+  USDC_TOKEN: "0x02b2907cf7c978abfd26bd8e92204ba7303743ba5a7107ca7012dace168ab0cf", // USDC Token
   
   // Factory ABI
   HTLC_FACTORY_ABI: [
@@ -45,88 +48,252 @@ export const STARKNET_CONFIG = {
   // Contract ABI
   HTLC_ESCROW_ABI: [
     {
-      "type": "function",
-      "name": "claim",
+      "type": "impl",
+      "name": "HTLCEscrow",
+      "interface_name": "starknet_htlc::htlc_escrow::htlc_escrow::IHTLCEscrow"
+    },
+    {
+      "type": "struct",
+      "name": "core::byte_array::ByteArray",
+      "members": [
+        {
+          "name": "data",
+          "type": "core::array::Array::<core::bytes_31::bytes31>"
+        },
+        {
+          "name": "pending_word",
+          "type": "core::felt252"
+        },
+        {
+          "name": "pending_word_len",
+          "type": "core::integer::u32"
+        }
+      ]
+    },
+    {
+      "type": "struct",
+      "name": "core::integer::u256",
+      "members": [
+        {
+          "name": "low",
+          "type": "core::integer::u128"
+        },
+        {
+          "name": "high",
+          "type": "core::integer::u128"
+        }
+      ]
+    },
+    {
+      "type": "interface",
+      "name": "starknet_htlc::htlc_escrow::htlc_escrow::IHTLCEscrow",
+      "items": [
+        {
+          "type": "function",
+          "name": "claim",
+          "inputs": [
+            {
+              "name": "secret",
+              "type": "core::byte_array::ByteArray"
+            }
+          ],
+          "outputs": [],
+          "state_mutability": "external"
+        },
+        {
+          "type": "function",
+          "name": "refund",
+          "inputs": [],
+          "outputs": [],
+          "state_mutability": "external"
+        },
+        {
+          "type": "function",
+          "name": "get_maker_address",
+          "inputs": [],
+          "outputs": [
+            {
+              "type": "core::starknet::contract_address::ContractAddress"
+            }
+          ],
+          "state_mutability": "view"
+        },
+        {
+          "type": "function",
+          "name": "get_taker_address",
+          "inputs": [],
+          "outputs": [
+            {
+              "type": "core::starknet::contract_address::ContractAddress"
+            }
+          ],
+          "state_mutability": "view"
+        },
+        {
+          "type": "function",
+          "name": "get_token_address",
+          "inputs": [],
+          "outputs": [
+            {
+              "type": "core::starknet::contract_address::ContractAddress"
+            }
+          ],
+          "state_mutability": "view"
+        },
+        {
+          "type": "function",
+          "name": "get_amount",
+          "inputs": [],
+          "outputs": [
+            {
+              "type": "core::integer::u256"
+            }
+          ],
+          "state_mutability": "view"
+        },
+        {
+          "type": "function",
+          "name": "get_secret_hash",
+          "inputs": [],
+          "outputs": [
+            {
+              "type": "core::integer::u256"
+            }
+          ],
+          "state_mutability": "view"
+        },
+        {
+          "type": "function",
+          "name": "get_timelock",
+          "inputs": [],
+          "outputs": [
+            {
+              "type": "core::integer::u64"
+            }
+          ],
+          "state_mutability": "view"
+        },
+        {
+          "type": "function",
+          "name": "get_keccak_hash",
+          "inputs": [
+            {
+              "name": "secret",
+              "type": "core::byte_array::ByteArray"
+            }
+          ],
+          "outputs": [
+            {
+              "type": "core::integer::u256"
+            }
+          ],
+          "state_mutability": "view"
+        },
+        {
+          "type": "function",
+          "name": "get_keccak_hash_felt252",
+          "inputs": [
+            {
+              "name": "secret",
+              "type": "core::byte_array::ByteArray"
+            }
+          ],
+          "outputs": [
+            {
+              "type": "(core::felt252, core::felt252)"
+            }
+          ],
+          "state_mutability": "view"
+        }
+      ]
+    },
+    {
+      "type": "constructor",
+      "name": "constructor",
       "inputs": [
-        { "name": "secret", "type": "core::byte_array::ByteArray" }
-      ],
-      "outputs": [],
-      "state_mutability": "external"
+        {
+          "name": "maker",
+          "type": "core::starknet::contract_address::ContractAddress"
+        },
+        {
+          "name": "taker",
+          "type": "core::starknet::contract_address::ContractAddress"
+        },
+        {
+          "name": "token",
+          "type": "core::starknet::contract_address::ContractAddress"
+        },
+        {
+          "name": "amount",
+          "type": "core::integer::u256"
+        },
+        {
+          "name": "secret_hash",
+          "type": "core::integer::u256"
+        },
+        {
+          "name": "timelock",
+          "type": "core::integer::u64"
+        }
+      ]
     },
     {
-      "type": "function",
-      "name": "refund",
-      "inputs": [],
-      "outputs": [],
-      "state_mutability": "external"
+      "type": "event",
+      "name": "starknet_htlc::htlc_escrow::htlc_escrow::Claimed",
+      "kind": "struct",
+      "members": [
+        {
+          "name": "taker",
+          "type": "core::starknet::contract_address::ContractAddress",
+          "kind": "key"
+        },
+        {
+          "name": "amount",
+          "type": "core::integer::u256",
+          "kind": "data"
+        },
+        {
+          "name": "secret",
+          "type": "core::byte_array::ByteArray",
+          "kind": "data"
+        }
+      ]
     },
     {
-      "type": "function",
-      "name": "get_maker_address",
-      "inputs": [],
-      "outputs": [
-        { "type": "core::starknet::contract_address::ContractAddress" }
-      ],
-      "state_mutability": "view"
+      "type": "event",
+      "name": "starknet_htlc::htlc_escrow::htlc_escrow::Refunded",
+      "kind": "struct",
+      "members": [
+        {
+          "name": "maker",
+          "type": "core::starknet::contract_address::ContractAddress",
+          "kind": "key"
+        },
+        {
+          "name": "amount",
+          "type": "core::integer::u256",
+          "kind": "data"
+        }
+      ]
     },
     {
-      "type": "function",
-      "name": "get_taker_address",
-      "inputs": [],
-      "outputs": [
-        { "type": "core::starknet::contract_address::ContractAddress" }
-      ],
-      "state_mutability": "view"
-    },
-    {
-      "type": "function",
-      "name": "get_token_address",
-      "inputs": [],
-      "outputs": [
-        { "type": "core::starknet::contract_address::ContractAddress" }
-      ],
-      "state_mutability": "view"
-    },
-    {
-      "type": "function",
-      "name": "get_amount",
-      "inputs": [],
-      "outputs": [{ "type": "core::integer::u256" }],
-      "state_mutability": "view"
-    },
-    {
-      "type": "function",
-      "name": "get_secret_hash",
-      "inputs": [],
-      "outputs": [{ "type": "core::integer::u256" }],
-      "state_mutability": "view"
-    },
-    {
-      "type": "function",
-      "name": "get_timelock",
-      "inputs": [],
-      "outputs": [{ "type": "core::integer::u64" }],
-      "state_mutability": "view"
-    },
-    {
-      "type": "function",
-      "name": "get_keccak_hash",
-      "inputs": [
-        { "name": "secret", "type": "core::byte_array::ByteArray" }
-      ],
-      "outputs": [{ "type": "core::integer::u256" }],
-      "state_mutability": "view"
-    },
-    {
-      "type": "function",
-      "name": "get_keccak_hash_felt252",
-      "inputs": [
-        { "name": "secret", "type": "core::byte_array::ByteArray" }
-      ],
-      "outputs": [{ "type": "(core::felt252, core::felt252)" }],
-      "state_mutability": "view"
+      "type": "event",
+      "name": "starknet_htlc::htlc_escrow::htlc_escrow::Event",
+      "kind": "enum",
+      "variants": [
+        {
+          "name": "Claimed",
+          "type": "starknet_htlc::htlc_escrow::htlc_escrow::Claimed",
+          "kind": "nested"
+        },
+        {
+          "name": "Refunded",
+          "type": "starknet_htlc::htlc_escrow::htlc_escrow::Refunded",
+          "kind": "nested"
+        }
+      ]
     }
-  ] as const,
+  ] as const  satisfies Abi,
   
   // Token ABI
   ERC20_ABI: [
