@@ -7,8 +7,8 @@ import { Providers } from "./providers"
 const inter = Inter({ subsets: ["latin"] })
 
 export const metadata: Metadata = {
-  title: "Cross-Chain Swap",
-  description: "Ethereum to Starknet cross-chain swap interface",
+  title: "MultiZap",
+  description: "Ethereum to Starknet Fusion+ Extension",
     generator: 'v0.dev'
 }
 

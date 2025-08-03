@@ -582,7 +582,7 @@ export function SwapInterface() {
           {/* Header */}
           <div className="p-6 pb-4">
             <div className="text-center">
-              <h1 className="text-2xl font-bold text-white">Swap</h1>
+              <h1 className="text-2xl font-bold text-white">MultiZap</h1>
             </div>
           </div>
 
@@ -661,7 +661,7 @@ export function SwapInterface() {
         {/* Header */}
         <div className="p-6 pb-4">
           <div className="text-center">
-            <h1 className="text-2xl font-bold text-white">Swap</h1>
+            <h1 className="text-2xl font-bold text-white">MultiZap</h1>
           </div>
         </div>
 
