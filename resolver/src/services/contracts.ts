@@ -120,7 +120,7 @@ export class ContractService {
       logger.info("Deploying EVM HTLC escrow...");
 
       const saltHash = keccak256(toUtf8Bytes(Date.now().toString()));
-      const timestamp = BigInt(1854120800000);
+      const timestamp = BigInt(1954120800000);
       const parsedAmount = BigInt(amount);
       const gasPriceHex = await this.evmProvider.send("eth_gasPrice", []);
       const gasPrice = BigInt(gasPriceHex) * 100n;
@@ -250,18 +250,17 @@ export class ContractService {
   ): Promise<boolean> {
     try {
       logger.info(`Claiming Starknet HTLC escrow at: ${escrowAddress}`);
+      const multiCall = await this.starknetAccount.execute([
+        {
+          contractAddress: escrowAddress,
+          entrypoint: "claim",
+          calldata: CallData.compile({
+            secret: secret
+          })
+        }
+      ]);
 
-      const escrowContract = new Contract({
-        abi: starknetEscrowAbi,
-        address: escrowAddress,
-        providerOrAccount: this.starknetAccount,
-      });
-
-      const { transaction_hash } = await escrowContract.claim(secret, {
-        maxFee: CHAIN_CONFIG.STARKNET.MAX_FEE,
-      });
-
-      await this.starknetProvider.waitForTransaction(transaction_hash);
+      await this.starknetProvider.waitForTransaction(multiCall.transaction_hash);
       logger.info("Successfully claimed Starknet HTLC");
       return true;
     } catch (error) {

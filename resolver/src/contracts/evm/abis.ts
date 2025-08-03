@@ -28,7 +28,7 @@ export const evmFactoryAbi = [
 
 export const evmEscrowAbi = [
   {
-    "inputs": [{ "name": "secret", "type": "bytes32" }],
+    "inputs": [{ "name": "secret", "type": "bytes" }],
     "name": "claim",
     "outputs": [],
     "stateMutability": "nonpayable",
@@ -45,7 +45,7 @@ export const evmEscrowAbi = [
     "anonymous": false,
     "inputs": [
       { "indexed": true, "name": "taker", "type": "address" },
-      { "indexed": false, "name": "secret", "type": "bytes32" }
+      { "indexed": false, "name": "secret", "type": "bytes" }
     ],
     "name": "Claimed",
     "type": "event"

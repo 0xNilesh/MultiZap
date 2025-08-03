@@ -10,18 +10,6 @@ export enum OrderStatus {
   REFUNDED_DST = "refunded_dst",
 }
 
-// export interface Order {
-//   _id: string;
-//   maker: string;
-//   srcToken: string;
-//   dstToken: string;
-//   srcAmount: string;
-//   dstAmount: string;
-//   currentBump: number;
-//   status: OrderStatus;
-//   createdAt: string;
-// }
-
 export interface OrderStatusResponse {
   status:
     | "pending_auction"
@@ -88,13 +76,14 @@ export interface AssignOrderRequest {
 }
 
 export interface CompleteOrderRequest {
-  status: "filled" | "refunded_src" | "refunded_dst" | "failed";
+  status: 'completed' | 'refunded_src' | 'refunded_dst' | 'failed';
   details?: {
     srcClaimTx?: string;
-    dstClaimTx?: string;
-    resolverPayout?: string;
-    makerReceived?: string;
   };
+}
+
+export interface GetSecretResponse {
+  secret: string;
 }
 
 export interface ResolverAssignment {
@@ -109,6 +98,8 @@ export interface ResolverAssignment {
   dstTimelock?: number;
   fillAmount?: string;
   takeAmount?: string;
+  secret?: string;
+  claimTxHash?: string;
   status:
     | "assigned"
     | "src_deployed"
@@ -125,5 +116,10 @@ export interface FeedAssignmentUpdatePayload {
   dstTimelock?: number;
   fillAmount?: string;
   takeAmount?: string;
-  status?: 'src_deployed' | 'dst_deployed' | 'claimed_src' | 'completed' | 'failed';
+  status?:
+    | "src_deployed"
+    | "dst_deployed"
+    | "claimed_src"
+    | "completed"
+    | "failed";
 }

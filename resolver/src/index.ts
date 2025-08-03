@@ -4,12 +4,16 @@ import { ContractService } from "./services/contracts";
 import { Order, OrderStatus, AssignOrderRequest } from "./types/orders";
 import logger from "./utils/logger";
 import env from "./config/env";
-import { CONTRACT_ADDRESSES } from "./config/contracts";
 
 class ResolverServer {
   private relayerService: RelayerService;
   private contractService: ContractService;
   private isProcessingOrder: boolean;
+  private isCheckingPending = false;
+  private isHandlingClaimed = false;
+
+  private pendingJob?: cron.ScheduledTask;
+  private claimedJob?: cron.ScheduledTask;
 
   constructor() {
     this.relayerService = new RelayerService();
@@ -34,9 +38,6 @@ class ResolverServer {
             order.orderId
           );
           console.log("Order details:", orderDetails.order._id);
-
-          // Get secret hash from contract service
-          // const secretHash = "0xb68fe43f0d1a0d7aef123722670be50268e15365401c442f8806ef83b612976b";
 
           // Prepare assignment request
           const assignment: AssignOrderRequest = {
@@ -80,81 +81,6 @@ class ResolverServer {
     dstTimelock: number
   ) {
     try {
-      // Update order status to assigned
-      // await this.relayerService.updateOrderStatus(
-      //   order._id,
-      //   { status: OrderStatus.ASSIGNED }
-      // );
-
-      // const srcMaker = order.makerChain == "sepolia" ? order.makerAddress : env.RESOLVER_ADDRESS;
-      // const srcTaker = order.makerAddress == "sepolia" ? env.RESOLVER_ADDRESS: order.makerAddress;
-
-      //   if (order.makerChain == "sepolia") {
-      //     // Deploy source chain HTLC
-      //     const srcEscrowAddress = await this.contractService.deployEvmEscrow(
-      //       order.makerAddress,
-      //       env.RESOLVER_ADDRESS,
-      //       order.makerAsset,
-      //       order.makingAmount,
-      //       srcTimelock,
-      //       order.hashlock
-      //     );
-
-      //     // Update order status to source deployed
-      //     await this.relayerService.updateOrderStatus(
-      //       order._id,
-      //       { status: OrderStatus.SRC_DEPLOYED, srcEscrowAddress }
-      //     );
-
-      //     // Deploy destination chain HTLC
-      //     const dstEscrowAddress = await this.contractService.deployStarknetEscrow(
-      //       env.STARKNET_ACCOUNT_ADDRESS,
-      //       env.STARKNET_ACCOUNT_ADDRESS,
-      //       order.takerAsset,
-      //       order.takingAmount,
-      //       dstTimelock,
-      //       order.hashlock
-      //     );
-
-      //     // Update order status to source deployed
-      //     await this.relayerService.updateOrderStatus(
-      //       order._id,
-      //       { status: OrderStatus.DST_DEPLOYED, dstEscrowAddress }
-      //     );
-      // } else if (order.makerChain == "starknet") {
-      //   // Deploy destination chain HTLC
-      //   //   const srcEscrowAddress = await this.contractService.deployStarknetEscrow(
-      //   //     order.makerAddress,
-      //   //     env.STARKNET_ACCOUNT_ADDRESS,
-      //   //     order.takerAsset,
-      //   //     order.takingAmount,
-      //   //     dstTimelock,
-      //   //     order.hashlock
-      //   //   );
-
-      //   //   // Update order status to source deployed
-      //   //   await this.relayerService.updateOrderStatus(
-      //   //     order._id,
-      //   //     { status: OrderStatus.SRC_DEPLOYED, srcEscrowAddress }
-      //   //   );
-
-      //   // // Deploy source chain HTLC
-      //   //   const dstEscrowAddress = await this.contractService.deployEvmEscrow(
-      //   //     order.makerAddress,
-      //   //     env.RESOLVER_ADDRESS,
-      //   //     order.makerAsset,
-      //   //     order.makingAmount,
-      //   //     srcTimelock,
-      //   //     order.hashlock
-      //   //   );
-
-      //   //   // Update order status to source deployed
-      //   //   await this.relayerService.updateOrderStatus(
-      //   //     order._id,
-      //   //     { status: OrderStatus.SRC_DEPLOYED, dstEscrowAddress }
-      //   //   );
-      // }
-
       // Decide which leg is "source" and which is "destination"
       const isMakerEthereum = order.makerChain === "sepolia";
 
@@ -257,32 +183,137 @@ class ResolverServer {
     }
   }
 
+  private async handleClaimedOrders() {
+    // if (this.isProcessingOrder) {
+    //   logger.debug("Still processing previous order, skipping check");
+    //   return;
+    // }
+
+    try {
+      // this.isProcessingOrder = true;
+      const claimedOrders = await this.relayerService.getUserClaimedOrders();
+
+      for (const orderDetail of claimedOrders) {
+        try {
+          const order = orderDetail.order;
+          const assignment = orderDetail.assignment;
+          // if (order.status !== OrderStatus.DST_DEPLOYED) {
+          //   continue; // Skip if order is not in the correct state
+          // }
+
+          // Get the secret that was revealed by the user
+          const secret = assignment.secret;
+          if (!secret) {
+            logger.error(`No secret found for order ${order._id}`);
+            continue;
+          }
+
+          logger.info(`Processing claimed order ${order._id} with revealed secret`);
+
+          try {
+            // Determine which chain is source and claim accordingly
+            let tx: any;
+            if (order.makerChain === "sepolia") {
+              // Source is EVM
+              tx = await this.contractService.claimEvmEscrow(
+                assignment.srcEscrowAddress!,
+                secret
+              );
+            } else {
+              // Source is Starknet
+              tx = await this.contractService.claimStarknetEscrow(
+                assignment.srcEscrowAddress!,
+                secret
+              );
+            }
+
+            const txHash = order.makerChain === "sepolia" ? tx.hash : tx.transaction_hash;
+
+            // Update order as complete with claim transaction
+            await this.relayerService.completeOrder(order._id, {
+              status: "completed",
+              details: {
+                srcClaimTx: txHash,
+              }
+            });
+
+            logger.info(`Successfully processed revealed secret for order ${order._id}`);
+          } catch (claimError) {
+            logger.error(`Failed to claim source escrow for order ${order._id}:`, claimError);
+          }
+
+          logger.info(`Successfully completed order ${order._id}`);
+        } catch (error) {
+          logger.error(`Error processing claimed order ${orderDetail.order._id}:`, error);
+        }
+      }
+    } catch (error) {
+      logger.error("Error in handleClaimedOrders:", error);
+    } finally {
+      // this.isProcessingOrder = false;
+    }
+  }
+
   public start() {
     logger.info("Starting resolver server...");
 
-    // Check for orders every 30 seconds
-    cron.schedule("*/30 * * * * *", () => {
-      this.checkPendingOrders().catch((error) => {
+    // Check for new orders every 30 seconds
+    this.pendingJob = cron.schedule("*/30 * * * * *", async () => {
+      if (this.isCheckingPending) return;
+
+      this.isCheckingPending = true;
+      logger.info("Listening for new orders...");
+      try {
+        await this.checkPendingOrders();
+      } catch (error) {
         logger.error("Unhandled error in checkPendingOrders:", error);
-      });
+      } finally {
+        this.isCheckingPending = false;
+      }
     });
 
-    // Add graceful shutdown
+    // Check for claimed orders every 30 seconds
+    this.claimedJob = cron.schedule("*/30 * * * * *", async () => {
+      if (this.isHandlingClaimed) return;
+
+      this.isHandlingClaimed = true;
+      logger.info("Listening for user claimed orders...");
+      try {
+        await this.handleClaimedOrders();
+      } catch (error) {
+        logger.error("Unhandled error in handleClaimedOrders:", error);
+      } finally {
+        this.isHandlingClaimed = false;
+      }
+    });
+
+    // Handle graceful shutdown
     process.on("SIGTERM", this.shutdown.bind(this));
     process.on("SIGINT", this.shutdown.bind(this));
   }
 
   private async shutdown() {
     logger.info("Shutting down resolver server...");
-    if (this.isProcessingOrder) {
-      logger.info("Waiting for current order to complete...");
-      // Wait for current order to complete (max 30 seconds)
+
+    // Stop cron jobs
+    this.pendingJob?.stop();
+    this.claimedJob?.stop();
+
+    // Wait for ongoing order processing
+    if (this.isProcessingOrder || this.isCheckingPending || this.isHandlingClaimed) {
+      logger.info("Waiting for current jobs to complete...");
       let attempts = 0;
-      while (this.isProcessingOrder && attempts < 30) {
+
+      while (
+        (this.isProcessingOrder || this.isCheckingPending || this.isHandlingClaimed)
+        && attempts < 30
+      ) {
         await new Promise((resolve) => setTimeout(resolve, 1000));
         attempts++;
       }
     }
+
+    logger.info("Shutdown complete.");
     process.exit(0);
   }
 }

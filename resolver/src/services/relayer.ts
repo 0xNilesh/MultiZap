@@ -6,6 +6,7 @@ import {
   PendingOrderResponse,
   OrderDetailResponse,
   FeedAssignmentUpdatePayload,
+  CompleteOrderRequest,
 } from "../types/orders";
 import logger from "../utils/logger";
 
@@ -60,27 +61,47 @@ export class RelayerService {
     }
   }
 
-  async updateOrderStatus(orderId: string, payload: FeedAssignmentUpdatePayload): Promise<boolean> {
-  try {
-    const response = await axios.post(
-      `${this.baseUrl}/orders/${orderId}/feed-assignment`,
-      payload
-    );
-    return response.status === 200;
-  } catch (error) {
-    logger.error("Error updating order status:", error);
-    throw error;
-  }
-}
-
-  async completeOrder(orderId: string): Promise<boolean> {
+  async updateOrderStatus(
+    orderId: string,
+    payload: FeedAssignmentUpdatePayload
+  ): Promise<boolean> {
     try {
       const response = await axios.post(
-        `${this.baseUrl}/orders/${orderId}/complete`
+        `${this.baseUrl}/orders/${orderId}/feed-assignment`,
+        payload
+      );
+      return response.status === 200;
+    } catch (error) {
+      logger.error("Error updating order status:", error);
+      throw error;
+    }
+  }
+
+  async completeOrder(
+    orderId: string,
+    completeRequest: CompleteOrderRequest
+  ): Promise<boolean> {
+    try {
+      const response = await axios.post(
+        `${this.baseUrl}/orders/${orderId}/complete`,
+        completeRequest
       );
       return response.status === 200;
     } catch (error) {
       logger.error("Error completing order:", error);
+      throw error;
+    }
+  }
+
+  async getUserClaimedOrders(): Promise<OrderDetailResponse[]> {
+    try {
+      const response = await axios.get(
+        `${this.baseUrl}/orders/revealed/${env.RESOLVER_ADDRESS}`
+      );
+      console.log("Fetched user claimed orders:", response.data);
+      return response.data;
+    } catch (error) {
+      logger.error("Error fetching user claimed orders:", error);
       throw error;
     }
   }
