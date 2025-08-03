@@ -28,7 +28,7 @@ This system utilizes smart contracts, relayers, and resolvers to enable secure, 
 
 This is a high-level architecture and flow for a typical swap lifecycle:
 
-![MultiZap Architecture](![Architecture Flow Diagram](architecture.png))
+![Architecture Flow Diagram](architecture.png)
 
 **Flow:**
 1. User initiates swap from EVM to Starknet.
@@ -102,10 +102,10 @@ This is a high-level architecture and flow for a typical swap lifecycle:
 
 | Chain            | Contract                        | Address                      |
 |------------------|---------------------------------|------------------------------|
-| Ethereum Sepolia | HTLCEscrowFactory               | `TO_BE_FILLED_BY_YOU`        |
-| Ethereum Sepolia | USDC                            | `TO_BE_FILLED_BY_YOU`        |
-| Starknet Sepolia | StarknetEscrowFactory           | `TO_BE_FILLED_BY_YOU`        |
-| Starknet Sepolia | USDC                            | `TO_BE_FILLED_BY_YOU`        |
+| Ethereum Sepolia | HTLCEscrowFactory               | [Sepolia HTLC Factory](https://sepolia.etherscan.io/address/0xfaa252aa73e36216de5a30adebc4f5902cd713f3)        |
+| Ethereum Sepolia | USDC                            | [USDC](https://sepolia.etherscan.io/token/0x7dda7fbe5cc89791791c284e0c55c6c7b75631fa)                       |
+| Starknet Sepolia | StarknetEscrowFactory           | [Starknet HTLC Factory](https://sepolia.voyager.online/contract/0x01248c99473439e9e79518adff2ba5e645122591571f096f8f6cc003cc0d4d9a)        |
+| Starknet Sepolia | USDC                            | [USDC](https://sepolia.voyager.online/contract/0x02b2907cf7c978abfd26bd8e92204ba7303743ba5a7107ca7012dace168ab0cf)        |
 
 ---
 
